@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+
+<link href="//cdn.rawgit.com/novus/nvd3/v1.8.1/build/nv.d3.css" rel="stylesheet">
+
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script src="//cdn.rawgit.com/novus/nvd3/v1.8.1/build/nv.d3.min.js"></script>
+
+<!--
+If local files present
+<link href="nv.d3.css" rel="stylesheet">
+
+<script src="d3.v3.js"></script>
+<script src="nv.d3.js"></script>
+-->
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+	font-family: Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    vertical-align: middle;
+}
+header {
+	height: 60px;
+}
+h1, main {
+	max-width: 1000px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+main {
+	padding-bottom: 20px;
+}
+h1, h2 {
+	line-height: 60px;
+}
+h1 {
+	text-align: center;
+}
+svg {
+	height: 350px!important;
+}
+.nvtooltip .legend-color-guide, .nvtooltip .key, .nvtooltip .value {
+	border-top-width: 0px!important;
+	border-bottom-width: 0px!important;
+}
+/* Old version
+td.nv-pointer-events-none {
+	border-top-width: 0px!important;
+	border-bottom-width: 0px!important;
+}*/
+</style>
+</head>
+
+
+<body>
+<header>
+	<h1>cppNet Live Dashboard</h1>
+</header>
+<main>
+	<div id="charts"></div>
+</main>
+
+<script>
+var graphs = (function() {
+	var DATA_FILE = "/data.log",
+		charts = {};
+	
+	function onLoad() {
+		ajax.get(DATA_FILE, null, function(status, data) {
+			gs = processData(data);
+			
+			for	(var i = 0; i < gs.length; i++) {
+				addGraph(gs[i].name, gs[i].lines);
+			}
+			console.log((new Date()).toLocaleString() + " :: Graphs loaded.");
+		}, console.error, null);
+	}
+	
+	function onUpdate() {
+		ajax.get(DATA_FILE, null, function(status, data) {
+			gs = processData(data);
+			
+			for	(var i = 0; i < gs.length; i++) {			
+				charts[gs[i].name]["data"].datum(gs[i].lines).transition().duration(0).call(charts[gs[i].name]["chart"]);
+				nv.utils.windowResize(charts[gs[i].name].update);
+			}
+			console.log((new Date()).toLocaleString() + " :: Graphs updated.");
+		}, console.error, null);
+	}
+	
+	function addGraph(_name, _data) {
+		if (charts.hasOwnProperty(_name)) {
+			console.warn(_name + " already in set.");
+			return;
+		}
+		
+		div = document.getElementById('charts');
+		div.innerHTML += '<div id="chart-'+_name+'"><h2>'+_name+'</h2><svg></svg></div>';
+		
+		charts[_name] = {};
+		
+		nv.addGraph(function() {
+			charts[_name]["chart"] = nv.models.lineChart()
+				.useInteractiveGuideline(true)
+				.showLegend(true)
+				.showYAxis(true)
+				.showXAxis(true)
+			;
+
+			charts[_name]["chart"].xAxis.tickFormat(d3.format(',r'));
+
+			charts[_name]["chart"].yAxis.tickFormat(d3.format('.03f'));
+
+			charts[_name]["data"] = d3.select('#chart-' + _name + ' svg').datum(_data);
+			charts[_name]["data"].transition().duration(0).call(charts[_name]["chart"]);
+
+			nv.utils.windowResize(charts[_name]["chart"].update);
+			return charts[_name]["chart"];
+		});
+	}
+	
+	function processData(data) {
+		var runs = data.split("#\n").clean(""),
+			gs = [];
+		
+		for (var i = 0; i < runs.length; i++) {
+			var run = runs[i].split("\n").clean("");
+			
+			if (i == 0) {
+				var j = 1;
+				while(j < run.length && isNaN(run[j])) {
+					var name = run[j];
+					if (run[j].substr(-1) == "!") {
+						gs.push({"name":run[j].substr(0, run[j].length - 1),"lines":new Array(runs.length),"showSummary":false});
+					} else {
+						gs.push({"name":run[j],"lines":new Array(runs.length * 2),"showSummary":true});
+					}
+					j++;
+				}
+			}
+			
+			for (var j = 0; j < gs.length; j++) {
+				if (run[0].substr(-4) == ".log") run[0] = run[0].substr(0, run[0].length - 4);
+				
+				if (gs[j]["showSummary"]) {
+					gs[j]["lines"][i*2] = {"key":run[0],"color":colorLuminance(stringToColour(run[0]), -0.1),"values":new Array()};
+					gs[j]["lines"][i*2 + 1] = {"key":run[0] + "_smoothed","color":colorLuminance(stringToColour(run[0]), -0.5),"values":new Array()};
+				} else {
+					gs[j]["lines"][i] = {"key":run[0],"color":colorLuminance(stringToColour(run[0]), -0.1),"values":new Array()};
+				}
+				
+				if (gs[j]["name"] != run[j + 1] && gs[j]["name"] + "!" != run[j + 1]) {
+					console.error("Error in data.");
+					return;
+				}
+			}
+			var j = gs.length + 1;
+			while (j < run.length) {
+				var x = j;
+				var g = 0;
+				j++;
+				while (j < run.length && g < gs.length) {
+					if (gs[g]["showSummary"]) {
+						if (run[j] != "-") gs[g]["lines"][i*2]["values"].push({"x":parseInt(run[x]),"y":parseFloat(run[j])});
+					} else {
+						if (run[j] != "-") gs[g]["lines"][i]["values"].push({"x":parseInt(run[x]),"y":parseFloat(run[j])});
+					}
+					g++; j++;
+				}
+				if (g != gs.length) {
+					console.error("Error in data.");
+					return;
+				}
+			}
+			
+			for	(var g = 0; g < gs.length; g++) {
+				if (!gs[g]["showSummary"]) continue;
+				
+				for (var p = 0; p < gs[g]["lines"][i*2]["values"].length; p++) {
+					var sum = 0;
+					for	(var a = Math.max(0, p-10); a < Math.min(gs[g]["lines"][i*2]["values"].length, p+10); a++) {
+						sum += gs[g]["lines"][i*2]["values"][a]["y"];
+					}
+					sum = sum / (Math.min(gs[g]["lines"][i*2]["values"].length, p+10) - Math.max(0, p-10));
+					gs[g]["lines"][i*2 + 1]["values"].push({"x":gs[g]["lines"][i*2]["values"][p]["x"],"y":sum});
+				}
+			}	
+		}
+		
+		return gs;
+	}
+	
+	// https://www.sitepoint.com/javascript-generate-lighter-darker-color/
+	function colorLuminance(hex, lum) {
+		// validate hex string
+		hex = String(hex).replace(/[^0-9a-f]/gi, '');
+		if (hex.length < 6) {
+			hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+		}
+		lum = lum || 0;
+
+		// convert to decimal and change luminosity
+		var rgb = "#", c, i;
+		for (i = 0; i < 3; i++) {
+			c = parseInt(hex.substr(i*2,2), 16);
+			c = Math.round(Math.min(Math.max(0, c + (c * lum)), 255)).toString(16);
+			rgb += ("00"+c).substr(c.length);
+		}
+
+		return rgb;
+	}
+
+	// http://stackoverflow.com/questions/3426404/create-a-hexadecimal-colour-based-on-a-string-with-javascript
+	var stringToColour = function(str) {
+		var hash = 0;
+		for (var i = 0; i < str.length; i++) {
+			hash = str.charCodeAt(i) + ((hash << 5) - hash);
+		}
+		var colour = '#';
+		for (var i = 0; i < 3; i++) {
+			var value = (hash >> (i * 8)) & 0xFF;
+			colour += ('00' + value.toString(16)).substr(-2);
+		}
+		return colour;
+	}
+
+	return {
+		init: function(refreshRate) {
+			onLoad();
+			setInterval(onUpdate, refreshRate);
+		},
+		update: onUpdate
+	};
+
+})();
+
+var ajax = (function() {
+	var LOADING = false,
+		PROGRESS = 0,
+		RQ = null;
+
+	function send(url, formData, ajaxUpdate, ajaxLoaded, ajaxFailed, ajaxAborted, type) {
+		if (LOADING)
+			return;
+
+		LOADING = true;
+		RQ = new XMLHttpRequest();
+
+		PROGRESS = 0;
+
+		RQ.addEventListener('progress', function(event) {
+			if (event.lengthComputable) {
+				PROGRESS = event.loaded / event.total;
+			}
+			if (ajaxUpdate != null)
+				ajaxUpdate(PROGRESS);
+		});
+		RQ.addEventListener('load', function() {
+			LOADING = false;
+			if (ajaxLoaded != null)
+				ajaxLoaded(RQ.status, RQ.responseText);
+		});
+		RQ.addEventListener("error", function() {
+			LOADING = false;
+			if (ajaxFailed != null)
+				ajaxFailed(RQ.status);
+		});
+		RQ.addEventListener("abort", function() {
+			LOADING = false;
+			if (ajaxAborted != null)
+				ajaxAborted();
+		});
+
+		RQ.open(type, url);
+
+		var postData = [];
+		for (var key in formData) {
+			postData.push(key + "=" + formData[key])
+		}
+
+		RQ.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+		RQ.send(postData.join("&"));
+	}
+
+
+	return {
+		get: function(url, ajaxUpdate, ajaxLoaded, ajaxFailed, ajaxAborted) {
+			send(url, null, ajaxUpdate, ajaxLoaded, ajaxFailed, ajaxAborted, 'GET');
+		},
+		post: function(url, formData, ajaxUpdate, ajaxLoaded, ajaxFailed, ajaxAborted) {
+			send(url, formData, ajaxUpdate, ajaxLoaded, ajaxFailed, ajaxAborted, 'POST');
+		},
+		isBusy: function() {
+			return LOADING;
+		},
+		getProgress: function() {
+			return PROGRESS;
+		},
+		abort: function() {
+			if (LOADING)
+				RQ.abort();
+		}
+	};
+})();
+
+
+Array.prototype.clean = function(deleteValue) {
+  for (var i = 0; i < this.length; i++) {
+    if (this[i] == deleteValue) {         
+      this.splice(i, 1);
+      i--;
+    }
+  }
+  return this;
+};
+
+
+graphs.init(10000);
+</script>
+
+
+
+</body>
+</html>

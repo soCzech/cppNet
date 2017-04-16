@@ -1,0 +1,11 @@
+bin/
+lib/
+dataset/
+dashboard/*.js
+dashboard/*.css
+
+docs/*
+!docs/docs.pdf
+
+cn
+fc
