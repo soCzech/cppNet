@@ -2,6 +2,8 @@
 
 namespace cppNet {
 
+	// fills data_vector with the examples
+	// count is the number of examples to load
 	void mnist_loader::get_data(data_vector & td, size_t count) {
 		images_.open(images_file_, std::ios::binary);
 		labels_.open(labels_file_, std::ios::binary);
@@ -16,11 +18,13 @@ namespace cppNet {
 
 		for (size_t j = 0; j < count; j++) {
 			training_data d;
+			// create the image as 1D vector
 			d.input = VectorF(784);
 
 			char c;
 			for (size_t i = 0; i < 784; i++) {
 				images_.get(c);
+				// fill the vector by normalized values
 				d.input[i] = ((unsigned char)c) / (255.0);
 			}
 			labels_.get(c);

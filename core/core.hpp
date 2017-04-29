@@ -15,6 +15,7 @@ namespace cppNet {
 
 	using VectorF = Eigen::VectorXf;
 	using MatrixF = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+	// function accepting VectorF and returning VectorF
 	using activation_fn = VectorF(*)(const VectorF& v);
 
 	struct training_data {
@@ -37,6 +38,7 @@ namespace cppNet {
 
 	/*	=====
 		Neuron functions
+		all functions described in user documentation
 		=====*/
 
 	inline float sign_func(float x) {

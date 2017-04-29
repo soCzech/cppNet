@@ -7,6 +7,8 @@ namespace cppNet {
 		time_t now = time(0);
 		tm* ltm = localtime(&now);
 
+		// creates filename based on current system time
+		// YYYYMMDD_HHMMSS.log
 		filename_ = dir + "/" +
 			std::to_string(1900 + ltm->tm_year) +
 			addZero(1 + ltm->tm_mon) +
@@ -18,6 +20,7 @@ namespace cppNet {
 		std::cout << "Logging to " << filename_ << ". Be sure the directory exists." << std::endl;
 		std::cout << "To see progress, start HTTP server in dashboard directory by command 'python server.py --logdir=$PATH_TO_LOGDIR'." << std::endl;
 
+		// write all graph names to the file
 		summary_.open(filename_, std::ios::binary);
 		for (auto&& s : graphs) {
 			summary_ << s << '\n';
@@ -27,10 +30,11 @@ namespace cppNet {
 	}
 
 	void summary::log(size_t after_steps, const std::string& type, float value) {
+		// log single value
 		bool write = false;
 		size_t type_pos;
 
-		// find the type in vector
+		// find the value type in vector and check if the previously added value of this type is saved
 		for (size_t i = 0; i < to_write_.size(); i++) {
 			if (to_write_[i].name == type) {
 				type_pos = i;
@@ -42,6 +46,7 @@ namespace cppNet {
 			}
 		}
 
+		// if previously added value of this type is NOT yet saved, log all previous values to the file
 		if (write) {
 			size_t write_before_this_one = last_write_;
 			last_write_ = to_write_[type_pos].last_update;
@@ -57,6 +62,7 @@ namespace cppNet {
 			}
 			summary_.flush();
 		}
+		// cache the new value for the next write
 		to_write_[type_pos].last_update = after_steps;
 		to_write_[type_pos].value = value;
 	}
@@ -65,12 +71,14 @@ namespace cppNet {
 		bool write = false;
 		size_t update = last_write_;
 
+		// find if there is not yet saved value
 		for (size_t i = 0; i < to_write_.size(); i++) {
 			if (to_write_[i].last_update > update) {
 				update = to_write_[i].last_update;
 				write = true;
 			}
 		}
+		// if there is, save it
 		if (write) {
 			summary_ << update << '\n';
 			for (size_t i = 0; i < to_write_.size(); i++) {

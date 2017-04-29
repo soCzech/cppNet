@@ -5,7 +5,8 @@ dashboard/*.js
 dashboard/*.css
 
 docs/*
-!docs/docs.pdf
+!docs/*.pdf
+!docs/*.md
 
 cn
 fc

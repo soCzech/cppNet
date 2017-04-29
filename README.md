@@ -22,4 +22,4 @@ Here are the steps to install **cppNet**.
 ___
 
 
-***For complete specification, see docs.pdf.***
+***To find out how to build your own network, see `test/*test.cpp` files and documentation in docs directory. For technical details, see the source files.***

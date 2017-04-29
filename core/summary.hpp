@@ -16,14 +16,19 @@ namespace cppNet {
 	private:
 		std::string addZero(int i);
 		struct summ {
+			// graph name
 			std::string name;
+			// last logged value
 			float value;
+			// when was the value last time logged
 			size_t last_update;
 		};
 
 		std::string filename_;
 		std::ofstream summary_;
+		// vector of graphs that are being logged
 		std::vector<summ> to_write_;
+		// counter of writes
 		size_t last_write_ = 0;
 	};
 
